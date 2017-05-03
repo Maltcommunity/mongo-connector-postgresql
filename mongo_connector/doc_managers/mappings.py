@@ -131,7 +131,7 @@ def get_transformed_document(mappings, db, collection, mapped_document):
             ARRAY_OF_SCALARS_TYPE
         )
     }
-    keys = mapped_fields.keys()
+    keys = list(mapped_fields.keys())
     keys.sort()
 
     for _, mapping in mappings[db][collection].iteritems():

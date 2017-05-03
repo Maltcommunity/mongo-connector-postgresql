@@ -83,7 +83,7 @@ def sql_bulk_insert(cursor, mappings, namespace, documents):
             ARRAY_OF_SCALARS_TYPE
         )
     }
-    keys = mapped_fields.keys()
+    keys = list(mapped_fields.keys())
     keys.sort()
     values = []
 

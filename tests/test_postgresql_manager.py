@@ -288,7 +288,6 @@ class TestManager(TestPostgreSQLManager):
 
         self.docmgr.bulk_upsert([doc1, doc2, doc3], 'db.col', now)
 
-        print(self.cursor.execute.mock_calls)
         self.cursor.execute.assert_has_calls([
             call(
                 "INSERT INTO col_field2 (_creationDate,id_col,_id,subfield1) VALUES (NULL,1,NULL,'subval1')"

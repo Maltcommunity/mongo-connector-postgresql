@@ -6,11 +6,25 @@ import unicodedata
 
 from psycopg2._psycopg import AsIs
 
-from mongo_connector.doc_managers.mappings import get_mapped_document
-from mongo_connector.doc_managers.utils import extract_creation_date, get_array_fields, db_and_collection, \
-    get_array_of_scalar_fields, ARRAY_OF_SCALARS_TYPE, ARRAY_TYPE, get_nested_field_from_document
+from mongo_connector.doc_managers.mappings import (
+    get_mapped_document,
+    get_transformed_value,
+    get_transformed_document
+)
+
+from mongo_connector.doc_managers.utils import (
+    extract_creation_date,
+    get_array_fields,
+    db_and_collection,
+    get_array_of_scalar_fields,
+    ARRAY_OF_SCALARS_TYPE,
+    ARRAY_TYPE,
+    get_nested_field_from_document
+)
+
 
 LOG = logging.getLogger(__name__)
+
 
 all_chars = (unichr(i) for i in xrange(0x10000))
 control_chars = ''.join(c for c in all_chars if unicodedata.category(c) == 'Cc')
@@ -55,23 +69,41 @@ def sql_bulk_insert(cursor, mappings, namespace, documents):
     db, collection = db_and_collection(namespace)
 
     primary_key = mappings[db][collection]['pk']
-    keys = [
-        v['dest'] for k, v in mappings[db][collection].iteritems()
-        if 'dest' in v and v['type'] != ARRAY_TYPE
-        and v['type'] != ARRAY_OF_SCALARS_TYPE
-        ]
+    mapped_fields = {}
+    keys = []
     values = []
+
+    for _, mapping in mappings[db][collection].iteritems():
+
+        if 'dest' in mapping and mapping['type'] not in (
+            ARRAY_TYPE,
+            ARRAY_OF_SCALARS_TYPE
+        ):
+            mapped_fields[mapping['dest']] = mapping
+            keys.append(mapping['dest'])
 
     for document in documents:
         mapped_document = get_mapped_document(mappings, document, namespace)
-        document_values = [to_sql_value(extract_creation_date(mapped_document, mappings[db][collection]['pk']))]
+        document_values = [
+            to_sql_value(
+                extract_creation_date(
+                    mapped_document,
+                    mappings[db][collection]['pk']
+                )
+            )
+        ]
 
         if not mapped_document:
             break
 
         for key in keys:
             if key in mapped_document:
-                document_values.append(to_sql_value(mapped_document[key]))
+                val = get_transformed_value(
+                    mapped_fields[key],
+                    mapped_document, key
+                )
+                document_values.append(to_sql_value(val))
+
             else:
                 document_values.append(to_sql_value(None))
         values.append(u"({0})".format(u','.join(document_values)))
@@ -114,7 +146,8 @@ def insert_document_arrays(collection, cursor, db, document, mapped_document, ma
         sql_bulk_insert(cursor, mappings, "{0}.{1}".format(db, dest), linked_documents)
 
 
-def sql_insert(cursor, tableName, document, primary_key):
+def sql_insert(cursor, tableName, document, mappings, db, collection):
+    primary_key = mappings[db][collection]['pk']
     creationDate = extract_creation_date(document, primary_key)
     if creationDate is not None:
         document['_creationDate'] = creationDate
@@ -138,7 +171,10 @@ def sql_insert(cursor, tableName, document, primary_key):
         )
 
     try:
-        cursor.execute(sql, document)
+        cursor.execute(
+            sql,
+            get_transformed_document(mappings, db, collection, document)
+        )
     except Exception as e:
         LOG.error(u"Impossible to upsert the following document %s : %s", document, e)
 

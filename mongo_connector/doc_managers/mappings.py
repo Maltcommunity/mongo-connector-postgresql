@@ -2,7 +2,17 @@
 
 from mongo_connector.doc_managers.formatters import DocumentFlattener
 
-from mongo_connector.doc_managers.utils import db_and_collection, ARRAY_OF_SCALARS_TYPE
+from mongo_connector.doc_managers.utils import (
+    db_and_collection,
+    ARRAY_OF_SCALARS_TYPE,
+    ARRAY_TYPE
+)
+
+from importlib import import_module
+import logging
+
+
+LOG = logging.getLogger(__name__)
 
 _formatter = DocumentFlattener()
 
@@ -72,6 +82,66 @@ def get_mapped_field(mappings, namespace, field_name):
 def get_primary_key(mappings, namespace):
     db, collection = db_and_collection(namespace)
     return mappings[db][collection]['pk']
+
+
+def get_transformed_value(mapped_field, mapped_document, key):
+    val = mapped_document[key]
+
+    if 'transform' in mapped_field:
+        transform = mapped_field['transform']
+        transform_path = transform.rsplit('.', 1)
+        module_path = 'mongo_connector.doc_managers.transforms'
+
+        if len(transform_path) == 2:
+            module_path, transform_path = transform_path
+
+        else:
+            transform_path = transform_path[0]
+
+        try:
+            module = import_module(module_path)
+            transform = getattr(module, transform_path)
+
+        except (ImportError, ValueError) as err:
+            LOG.error('Impossible to use transform function: {0}'.format(err))
+
+        else:
+            try:
+                new_val = transform(val)
+
+            except Exception as err:
+                LOG.error(
+                    'An error occured during field transformation: {0}'.format(
+                        err
+                    )
+                )
+
+            else:
+                val = new_val
+
+    return val
+
+
+def get_transformed_document(mappings, db, collection, mapped_document):
+    mapped_fields = {}
+    keys = []
+
+    for _, mapping in mappings[db][collection].iteritems():
+
+        if 'dest' in mapping and mapping['type'] not in (
+            ARRAY_TYPE,
+            ARRAY_OF_SCALARS_TYPE
+        ):
+            mapped_fields[mapping['dest']] = mapping
+            keys.append(mapping['dest'])
+
+    return {
+        key: get_transformed_value(
+            mapped_fields[key],
+            mapped_document, key
+        ) if key in mapped_fields else mapped_document[key]
+        for key in mapped_document
+    }
 
 
 def is_mapped(mappings, namespace, field_name=None):

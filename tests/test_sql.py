@@ -56,17 +56,17 @@ class TestPostgreSQL(TestCase):
 
         mapping = {
             'db': {
-                'col': {
-                    'pk': '_id',
-                    'field1': {
+                'col': OrderedDict([
+                    ('pk', '_id'),
+                    ('field1', {
                         'type': 'TEXT',
                         'dest': 'field1'
-                    },
-                    'field2.subfield': {
+                    }),
+                    ('field2.subfield', {
                         'type': 'TEXT',
                         'dest': 'field2_subfield'
-                    }
-                }
+                    })
+                ])
             }
         }
 
@@ -80,6 +80,7 @@ class TestPostgreSQL(TestCase):
         }
 
         sql.sql_bulk_insert(cursor, mapping, 'db.col', [doc])
+
         cursor.execute.assert_called_with(
             "INSERT INTO col (_creationDate,field1,field2_subfield) VALUES (NULL,'val',NULL)"
         )
@@ -161,6 +162,21 @@ class TestPostgreSQL(TestCase):
         ])
 
     def test_sql_insert(self):
+        mapping = {
+            'db': {
+                'col': {
+                    'pk': '_id',
+                    '_id': {
+                        'type': 'INT',
+                        'dest': '_id'
+                    },
+                    'field': {
+                        'type': 'TEXT',
+                        'dest': 'field'
+                    }
+                }
+            }
+        }
         cursor = MagicMock()
         now = datetime.now()
 
@@ -169,7 +185,7 @@ class TestPostgreSQL(TestCase):
         doc['_id'] = ObjectId.from_datetime(now)
         doc['field'] = 'val'
 
-        sql.sql_insert(cursor, 'table', doc, '_id')
+        sql.sql_insert(cursor, 'table', doc, mapping, 'db', 'col')
 
         doc['_creationDate'] = utils.extract_creation_date(doc, '_id')
 
@@ -182,7 +198,7 @@ class TestPostgreSQL(TestCase):
             'field': 'val'
         }
 
-        sql.sql_insert(cursor, 'table', doc, '_id')
+        sql.sql_insert(cursor, 'table', doc, mapping, 'db', 'col')
 
         cursor.execute.assert_called_with(
             'INSERT INTO table  (field)  VALUES  (%(field)s) ',

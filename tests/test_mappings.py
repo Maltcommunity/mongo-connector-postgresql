@@ -163,6 +163,62 @@ class TestPostgreSQLMappings(TestCase):
         got = mappings.get_scalar_array_fields(mapping, 'missing_db', 'col')
         self.assertEqual(got, [])
 
+    def test_get_transform_value(self):
+        mapped_field = {
+            'type': 'INT',
+            'dest': 'str_to_int',
+            'transform': '__builtin__.int'
+        }
+        doc = {
+            'str_to_int': '42'
+        }
+
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, 42)
+
+        mapped_field['transform'] = 'missing.no'
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, '42')
+
+        mapped_field['transform'] = '__builtin__.int'
+        doc = {
+            'str_to_int': '42a'
+        }
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, '42a')
+
+    def test_get_transform_document(self):
+        mapping = {
+            'db': {
+                'col': {
+                    'str_to_int': {
+                        'type': 'INT',
+                        'dest': 'str_to_int',
+                        'transform': '__builtin__.int'
+                    }
+                }
+            }
+        }
+
+        doc = {
+            'str_to_int': '42'
+        }
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': 42})
+
+        doc = {
+            'str_to_int': '42a'
+        }
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': '42a'})
+
+        mapping['db']['col']['str_to_int']['transform'] = 'missing.no'
+        doc = {
+            'str_to_int': '42'
+        }
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': '42'})
+
 
 if __name__ == '__main__':
     main()

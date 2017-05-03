@@ -215,11 +215,11 @@ class TestPostgreSQLUtils(TestCase):
         self.assertFalse(got)
 
     def test_map_value_to_pgsql(self):
-        _id = ObjectId('0123456789AB')
+        _id = ObjectId('507f1f77bcf86cd799439011')
         got = utils.map_value_to_pgsql(_id)
         self.assertTrue(isinstance(got, str))
 
-        _id = '0123456789AB'
+        _id = '507f1f77bcf86cd799439011'
         got = utils.map_value_to_pgsql(_id)
         self.assertTrue(isinstance(got, str))
 

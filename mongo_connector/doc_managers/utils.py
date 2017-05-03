@@ -1,6 +1,7 @@
 # coding: utf8
 
 from bson.objectid import ObjectId
+from future.utils import iteritems
 
 ARRAY_TYPE = u'_ARRAY'
 ARRAY_OF_SCALARS_TYPE = u'_ARRAY_OF_SCALARS'
@@ -46,7 +47,7 @@ def get_fields_of_type(mappings, db, collection, document, type):
         return []
 
     return [
-        k for k, v in mappings[db][collection].iteritems()
+        k for k, v in iteritems(mappings[db][collection])
         if get_nested_field_from_document(document, k) and 'type' in v and v['type'] == type
         ]
 

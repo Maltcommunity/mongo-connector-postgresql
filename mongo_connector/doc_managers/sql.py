@@ -1,9 +1,12 @@
 # coding: utf8
 
 import logging
-import re
 import unicodedata
 
+import re
+from builtins import chr
+from future.utils import iteritems
+from past.builtins import long, basestring
 from psycopg2._psycopg import AsIs
 
 from mongo_connector.doc_managers.mappings import (
@@ -26,7 +29,7 @@ from mongo_connector.doc_managers.utils import (
 LOG = logging.getLogger(__name__)
 
 
-all_chars = (unichr(i) for i in xrange(0x10000))
+all_chars = (chr(i) for i in range(0x10000))
 control_chars = ''.join(c for c in all_chars if unicodedata.category(c) == 'Cc')
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 
@@ -57,7 +60,9 @@ def sql_drop_table(cursor, tableName):
     sql = u"DROP TABLE {0}".format(tableName.lower())
     cursor.execute(sql)
 
+
 def sql_create_table(cursor, tableName, columns):
+    columns.sort()
     sql = u"CREATE TABLE {0} {1}".format(tableName.lower(), to_sql_list(columns))
     cursor.execute(sql)
 
@@ -69,18 +74,18 @@ def sql_bulk_insert(cursor, mappings, namespace, documents):
     db, collection = db_and_collection(namespace)
 
     primary_key = mappings[db][collection]['pk']
-    mapped_fields = {}
-    keys = []
-    values = []
 
-    for _, mapping in mappings[db][collection].iteritems():
-
+    mapped_fields = {
+        mapping['dest']: mapping
+        for _, mapping in iteritems(mappings[db][collection])
         if 'dest' in mapping and mapping['type'] not in (
             ARRAY_TYPE,
             ARRAY_OF_SCALARS_TYPE
-        ):
-            mapped_fields[mapping['dest']] = mapping
-            keys.append(mapping['dest'])
+        )
+    }
+    keys = mapped_fields.keys()
+    keys.sort()
+    values = []
 
     for document in documents:
         mapped_document = get_mapped_document(mappings, document, namespace)
@@ -146,13 +151,21 @@ def insert_document_arrays(collection, cursor, db, document, mapped_document, ma
         sql_bulk_insert(cursor, mappings, "{0}.{1}".format(db, dest), linked_documents)
 
 
+def get_document_keys(document):
+    keys = list(document)
+    keys.sort()
+
+    return keys
+
+
 def sql_insert(cursor, tableName, document, mappings, db, collection):
     primary_key = mappings[db][collection]['pk']
+
     creationDate = extract_creation_date(document, primary_key)
     if creationDate is not None:
         document['_creationDate'] = creationDate
 
-    keys = document.keys()
+    keys = get_document_keys(document)
     valuesPlaceholder = ("%(" + column_name + ")s" for column_name in keys)
 
     if primary_key in document:

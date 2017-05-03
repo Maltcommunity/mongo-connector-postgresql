@@ -48,7 +48,7 @@ class TestPostgreSQL(TestCase):
         ]
         sql.sql_create_table(cursor, 'table', columns)
         cursor.execute.assert_called_with(
-            'CREATE TABLE table  (id INTEGER,field TEXT) '
+            'CREATE TABLE table  (field TEXT,id INTEGER) '
         )
 
     def test_sql_bulk_insert(self):
@@ -56,17 +56,17 @@ class TestPostgreSQL(TestCase):
 
         mapping = {
             'db': {
-                'col': OrderedDict([
-                    ('pk', '_id'),
-                    ('field1', {
+                'col': {
+                    'pk': '_id',
+                    'field1': {
                         'type': 'TEXT',
                         'dest': 'field1'
-                    }),
-                    ('field2.subfield', {
+                    },
+                    'field2.subfield': {
                         'type': 'TEXT',
                         'dest': 'field2_subfield'
-                    })
-                ])
+                    }
+                }
             }
         }
 
@@ -156,8 +156,8 @@ class TestPostgreSQL(TestCase):
         sql.sql_bulk_insert(cursor, mapping, 'db.col1', [doc, {}])
 
         cursor.execute.assert_has_calls([
-            call('INSERT INTO col_array (_creationDate,id_col1,field1) VALUES (NULL,1,\'val\')'),
-            call('INSERT INTO col_scalar (_creationDate,scalar,id_col1) VALUES (NULL,1,1),(NULL,2,1),(NULL,3,1)'),
+            call('INSERT INTO col_array (_creationDate,field1,id_col1) VALUES (NULL,\'val\',1)'),
+            call('INSERT INTO col_scalar (_creationDate,id_col1,scalar) VALUES (NULL,1,1),(NULL,1,2),(NULL,1,3)'),
             call('INSERT INTO col1 (_creationDate) VALUES (NULL)')
         ])
 
@@ -190,7 +190,7 @@ class TestPostgreSQL(TestCase):
         doc['_creationDate'] = utils.extract_creation_date(doc, '_id')
 
         cursor.execute.assert_called_with(
-            'INSERT INTO table  (_id,field,_creationDate)  VALUES  (%(_id)s,%(field)s,%(_creationDate)s)  ON CONFLICT (_id) DO UPDATE SET  (_id,field,_creationDate)  =  (%(_id)s,%(field)s,%(_creationDate)s) ',
+            'INSERT INTO table  (_creationDate,_id,field)  VALUES  (%(_creationDate)s,%(_id)s,%(field)s)  ON CONFLICT (_id) DO UPDATE SET  (_creationDate,_id,field)  =  (%(_creationDate)s,%(_id)s,%(field)s) ',
             doc
         )
 

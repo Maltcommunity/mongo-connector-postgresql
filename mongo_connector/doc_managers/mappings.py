@@ -134,15 +134,6 @@ def get_transformed_document(mappings, db, collection, mapped_document):
     keys = list(mapped_fields.keys())
     keys.sort()
 
-    for _, mapping in mappings[db][collection].iteritems():
-
-        if 'dest' in mapping and mapping['type'] not in (
-            ARRAY_TYPE,
-            ARRAY_OF_SCALARS_TYPE
-        ):
-            mapped_fields[mapping['dest']] = mapping
-            keys.append(mapping['dest'])
-
     return {
         key: get_transformed_value(
             mapped_fields[key],

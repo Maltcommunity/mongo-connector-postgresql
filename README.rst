@@ -1,5 +1,7 @@
-.. image:: https://travis-ci.org/Hopwork/mongo-connector-postgresql.svg?branch=master
+.. image:: https://travis-ci.org/Hopwork/mongo-connector-postgresql.svg?branch=master  
 .. image:: https://coveralls.io/repos/github/Hopwork/mongo-connector-postgresql/badge.svg?branch=master
+
+`Continuous Integration <https://travis-ci.org/Hopwork/mongo-connector-postgresql>`_ - `Code Coverage <https://coveralls.io/github/Hopwork/mongo-connector-postgresql>`_
 
 mongo-connector-postgresql is used to make the bridge between PostgreSQL and MongoDB.
 It acts as a river from MongoDB to PostgreSQL.

@@ -106,8 +106,10 @@ Please notice the following :
 
 Example of transform function:
 
-    def transform_str_to_bool(mongo_val):
-        return (mongo_val in ['true', 'True', 'yes', 'Yes', '1'])
+.. code-block:: python
+
+   def transform_str_to_bool(mongo_val):
+       return (mongo_val in ['true', 'True', 'yes', 'Yes', '1'])
 
 The connector also supports arrays of documents. Let say your Mongo database stores the following documents :
 

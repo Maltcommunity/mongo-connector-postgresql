@@ -5,6 +5,10 @@ from unittest import TestCase, main
 from mongo_connector.doc_managers import mappings
 
 
+def parseInt(val):
+    return int(val)
+
+
 class TestPostgreSQLMappings(TestCase):
     def test_clean_and_flatten_doc(self):
         mapping = {
@@ -167,7 +171,7 @@ class TestPostgreSQLMappings(TestCase):
         mapped_field = {
             'type': 'INT',
             'dest': 'str_to_int',
-            'transform': '__builtin__.int'
+            'transform': 'tests.test_mappings.parseInt'
         }
         doc = {
             'str_to_int': '42'
@@ -180,7 +184,7 @@ class TestPostgreSQLMappings(TestCase):
         got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
         self.assertEqual(got, '42')
 
-        mapped_field['transform'] = '__builtin__.int'
+        mapped_field['transform'] = 'tests.test_mappings.parseInt'
         doc = {
             'str_to_int': '42a'
         }
@@ -194,7 +198,7 @@ class TestPostgreSQLMappings(TestCase):
                     'str_to_int': {
                         'type': 'INT',
                         'dest': 'str_to_int',
-                        'transform': '__builtin__.int'
+                        'transform': 'tests.test_mappings.parseInt'
                     }
                 }
             }

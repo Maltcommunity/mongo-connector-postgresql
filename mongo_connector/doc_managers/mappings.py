@@ -1,5 +1,9 @@
 # coding: utf8
+
 from future.utils import iteritems
+from RestrictedPython.Guards import safe_builtins
+from RestrictedPython import compile_restricted
+
 from mongo_connector.doc_managers.formatters import DocumentFlattener
 
 from mongo_connector.doc_managers.utils import (
@@ -11,7 +15,7 @@ from mongo_connector.doc_managers.utils import (
 from importlib import import_module
 import logging
 
-
+logging.basicConfig()
 LOG = logging.getLogger(__name__)
 
 _formatter = DocumentFlattener()
@@ -89,23 +93,45 @@ def get_transformed_value(mapped_field, mapped_document, key):
 
     if 'transform' in mapped_field:
         transform = mapped_field['transform']
-        transform_path = transform.rsplit('.', 1)
-        module_path = 'mongo_connector.doc_managers.transforms'
 
-        if len(transform_path) == 2:
-            module_path, transform_path = transform_path
+        if transform[0] == '@':
+            transform_path = transform[1:].rsplit('.', 1)
+            module_path = 'mongo_connector.doc_managers.transforms'
+
+            if len(transform_path) == 2:
+                module_path, transform_path = transform_path
+
+            else:
+                transform_path = transform_path[0]
+
+            try:
+                module = import_module(module_path)
+                transform = getattr(module, transform_path)
+
+            except (ImportError, ValueError) as err:
+                LOG.error(
+                    'Impossible to use transform function: {0}'.format(err)
+                )
+                transform = None
 
         else:
-            transform_path = transform_path[0]
+            try:
+                src = 'transform = lambda val: {0}'.format(transform)
+                restricted_globals = {
+                    '__builtin__': safe_builtins
+                }
+                restricted_locals = {}
+                code = compile_restricted(src, '<string>', 'exec')
+                exec(code) in restricted_globals, restricted_locals
+                transform = restricted_locals['transform']
 
-        try:
-            module = import_module(module_path)
-            transform = getattr(module, transform_path)
+            except Exception as err:
+                LOG.error(
+                    'Impossible to use transform code: {0}'.format(err)
+                )
+                transform = None
 
-        except (ImportError, ValueError) as err:
-            LOG.error('Impossible to use transform function: {0}'.format(err))
-
-        else:
+        if transform is not None:
             try:
                 new_val = transform(val)
 

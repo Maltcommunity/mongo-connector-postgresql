@@ -11,7 +11,12 @@ setup(
         platforms=["any"],
         author=u'Hugo Lassiège, Maxime Gaudin',
         author_email='hugo@hopwork.com, maxime@hopwork.com',
-        install_requires=['mongo_connector >= 2.4', 'psycopg2 >= 2.6.1', 'future >= 0.16.0'],
+        install_requires=[
+            'mongo_connector >= 2.4',
+            'psycopg2 >= 2.6.1',
+            'future >= 0.16.0',
+            'jsonschema >= 2.6.0'
+        ],
         tests_require=['mock>=2.0.0'],
         license="http://www.apache.org/licenses/LICENSE-2.0.html",
         url='https://github.com/Hopwork/mongo-connector-postgresql',

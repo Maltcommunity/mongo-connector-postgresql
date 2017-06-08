@@ -13,12 +13,34 @@ from mongo_connector.errors import InvalidConfiguration
 from psycopg2.extensions import register_adapter
 from pymongo import MongoClient
 
-from mongo_connector.doc_managers.mappings import is_mapped, get_mapped_document, get_primary_key, \
-    get_scalar_array_fields
-from mongo_connector.doc_managers.sql import sql_table_exists, sql_create_table, sql_insert, sql_delete_rows, \
-    sql_bulk_insert, object_id_adapter, sql_delete_rows_where, to_sql_value, sql_drop_table
-from mongo_connector.doc_managers.utils import get_array_fields, db_and_collection, get_any_array_fields, \
-    ARRAY_OF_SCALARS_TYPE, ARRAY_TYPE, get_nested_field_from_document
+from mongo_connector.doc_managers.mappings import (
+    is_mapped,
+    get_mapped_document,
+    get_primary_key,
+    get_scalar_array_fields,
+    validate_mapping
+)
+from mongo_connector.doc_managers.sql import (
+    sql_table_exists,
+    sql_create_table,
+    sql_insert,
+    sql_delete_rows,
+    sql_bulk_insert,
+    object_id_adapter,
+    sql_delete_rows_where,
+    to_sql_value,
+    sql_drop_table
+)
+
+from mongo_connector.doc_managers.utils import (
+    get_array_fields,
+    db_and_collection,
+    get_any_array_fields,
+    ARRAY_OF_SCALARS_TYPE,
+    ARRAY_TYPE,
+    get_nested_field_from_document
+)
+
 
 MAPPINGS_JSON_FILE_NAME = 'mappings.json'
 
@@ -52,6 +74,7 @@ class DocManager(DocManagerBase):
         with open(MAPPINGS_JSON_FILE_NAME) as mappings_file:
             self.mappings = json.load(mappings_file)
 
+        validate_mapping(self.mappings)
         self._init_schema()
 
     def _init_schema(self):

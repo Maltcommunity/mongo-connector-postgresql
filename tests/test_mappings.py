@@ -167,6 +167,349 @@ class TestPostgreSQLMappings(TestCase):
         got = mappings.get_scalar_array_fields(mapping, 'missing_db', 'col')
         self.assertEqual(got, [])
 
+    def test_invalid_mapping_missing_pk(self):
+        mapping = {'testdb': {'testcol': {}}}
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_missing_pk_field(self):
+        mapping = {'testdb': {'testcol': {'pk': '_id'}}}
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_valid_mapping_pk(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {
+                        'type': 'INT'
+                    }
+                }
+            }
+        }
+
+        mappings.validate_mapping(mapping)
+
+    def test_valid_mapping_pk_auto_generated(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'dest': 'col_array',
+                        'fk': 'id_testcol'
+                    }
+                },
+                'col_array': {
+                    'pk': 'id',
+                    'id_testcol': {
+                        'type': 'INT'
+                    }
+                }
+            }
+        }
+
+        mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_missing_dest(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol'
+                    }
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_dest_not_mapped(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_foreign_key_missing(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'}
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_foreign_key_type_mismatch(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'id_testcol': {'type': 'TEXT'}
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_valid_mapping_array(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'id_testcol': {'type': 'INT'}
+                }
+            }
+        }
+
+        mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_nested(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    'id_testcol': {'type': 'INT'},
+                    'b': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol_a',
+                        'dest': 'testcol_b'
+                    }
+                },
+                'testcol_b': {
+                    'pk': '_id',
+                    'id_testcol_a': {'type': 'INT'},
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_valid_mapping_array_nested(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    'id_testcol': {'type': 'INT'},
+                    'b': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol_a',
+                        'dest': 'testcol_b'
+                    }
+                },
+                'testcol_b': {
+                    'pk': '_id',
+                    'id_testcol_a': {'type': 'SERIAL'},
+                }
+            }
+        }
+
+        mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_of_scalar_missing_dest(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY_OF_SCALAR',
+                        'fk': 'id_testcol',
+                        'valueField': 'scalar'
+                    }
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_of_scalar_dest_not_mapped(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY_OF_SCALAR',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a',
+                        'valueField': 'scalar'
+                    }
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_of_scalar_foreign_key_missing(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY_OF_SCALAR',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a',
+                        'valueField': 'scalar'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'}
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_of_scalar_foreign_key_type_mismatch(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY_OF_SCALARS',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a',
+                        'valueField': 'scalar'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'id_testcol': {'type': 'TEXT'}
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_invalid_mapping_array_of_scalar_value_field_not_mapped(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY_OF_SCALARS',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a',
+                        'valueField': 'scalar'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'id_testcol': {'type': 'INT'}
+                }
+            }
+        }
+
+        with self.assertRaises(mappings.InvalidConfiguration):
+            mappings.validate_mapping(mapping)
+
+    def test_valid_mapping_array_of_scalar(self):
+        mapping = {
+            'testdb': {
+                'testcol': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'a': {
+                        'type': '_ARRAY',
+                        'fk': 'id_testcol',
+                        'dest': 'testcol_a'
+                    }
+                },
+                'testcol_a': {
+                    'pk': '_id',
+                    '_id': {'type': 'INT'},
+                    'id_testcol': {'type': 'INT'},
+                    'scalar': {'type': 'INT'}
+                }
+            }
+        }
+
+        mappings.validate_mapping(mapping)
+
     def test_get_transform_value(self):
         mapped_field = {
             'type': 'INT',
@@ -203,10 +546,10 @@ class TestPostgreSQLMappings(TestCase):
                 }
             }
         }
-
         doc = {
             'str_to_int': '42'
         }
+
         got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
         self.assertEqual(got, {'str_to_int': 42})
 

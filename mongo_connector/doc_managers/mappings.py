@@ -1,12 +1,15 @@
 # coding: utf8
 from future.utils import iteritems
-from mongo_connector.doc_managers.formatters import DocumentFlattener
+import jsonschema
 
+from mongo_connector.doc_managers.formatters import DocumentFlattener
 from mongo_connector.doc_managers.utils import (
     db_and_collection,
-    ARRAY_OF_SCALARS_TYPE,
-    ARRAY_TYPE
+    ARRAY_TYPE,
+    ARRAY_OF_SCALARS_TYPE
 )
+from mongo_connector.doc_managers.mapping_schema import MAPPING_SCHEMA
+from mongo_connector.errors import InvalidConfiguration
 
 from importlib import import_module
 import logging
@@ -166,3 +169,105 @@ def get_scalar_array_fields(mappings, db, collection):
         k for k, v in iteritems(mappings[db][collection])
         if 'type' in v and v['type'] == ARRAY_OF_SCALARS_TYPE
         ]
+
+
+def validate_mapping(mappings):
+    try:
+        jsonschema.validate(mappings, MAPPING_SCHEMA)
+
+    except jsonschema.ValidationError as err:
+        raise InvalidConfiguration(
+            "Supplied mapping file is invalid: {0}".format(err)
+        )
+
+    # Integrity check
+    ARRAYS_TYPE = [ARRAY_TYPE, ARRAY_OF_SCALARS_TYPE]
+
+    for database in mappings:
+        dbmapping = mappings[database]
+
+        for collection in dbmapping:
+            mapping = dbmapping[collection]
+
+            if mapping['pk'] not in mapping:
+                # look for a linked table
+                for linked_collection in dbmapping:
+                    if linked_collection != collection:
+                        linked_mapping = dbmapping[linked_collection]
+                        links = [
+                            True
+                            for field in linked_mapping
+                            if field != 'pk'
+                            and linked_mapping[field]['type'] in ARRAYS_TYPE
+                            and linked_mapping[field]['dest'] == collection
+                        ]
+
+                        if len(links) > 0:
+                            break
+
+                else:
+                    # No linked table found, cannot generate primary key
+                    raise InvalidConfiguration(
+                        "Primary key {0} mapping not found in {1}.{2}".format(
+                            mapping['pk'],
+                            database,
+                            collection
+                        )
+                    )
+
+            for fieldname in mapping:
+                if fieldname != 'pk':
+                    field = mapping[fieldname]
+                    ftype = field['type']
+
+                    if ftype in ARRAYS_TYPE:
+                        dest = field['dest']
+
+                        # Check for linked table presence
+                        if dest not in dbmapping:
+                            raise InvalidConfiguration(
+                                "Collection {0} mapping not found in {1}".format(
+                                    dest,
+                                    database
+                                )
+                            )
+
+                        # Check for foreign key presence in linked table
+                        elif field['fk'] not in dbmapping[dest]:
+                            raise InvalidConfiguration(
+                                "Foreign key {0} mapping not found in {1}.{2}".format(
+                                    field['fk'],
+                                    database,
+                                    dest
+                                )
+                            )
+
+                        else:
+                            fk = dbmapping[dest][field['fk']]
+                            pk = mapping.get(mapping['pk'], {'type': 'SERIAL'})
+
+                            # Check for foreign key and linked table's primary key types
+                            if fk['type'] != pk['type']:
+                                raise InvalidConfiguration(
+                                    "Foreign key {0}.{1}.{2} type mismatch with primary key {0}.{3}.{4}".format(
+                                        database,
+                                        dest,
+                                        field['fk'],
+                                        collection,
+                                        mapping['pk']
+                                    )
+                                )
+
+                        # Check for value field presence in linked table
+                        if ftype == ARRAY_OF_SCALARS_TYPE:
+                            valuefield = field['valueField']
+
+                            if valuefield not in dbmapping[dest]:
+                                raise InvalidConfiguration(
+                                    'Value field {0}.{1}.{2} not mapped in {0}.{3}'.format(
+                                        database,
+                                        collection,
+                                        valuefield,
+                                        dest
+                                    )
+                                )

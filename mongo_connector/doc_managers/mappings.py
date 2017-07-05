@@ -1,6 +1,6 @@
 # coding: utf8
 
-from future.utils import iteritems
+from future.utils import iteritems, PY2, PY3
 from RestrictedPython.Guards import safe_builtins
 from RestrictedPython import compile_restricted
 
@@ -122,7 +122,13 @@ def get_transformed_value(mapped_field, mapped_document, key):
                 }
                 restricted_locals = {}
                 code = compile_restricted(src, '<string>', 'exec')
-                exec(code) in restricted_globals, restricted_locals
+
+                if PY2:
+                    exec(code) in restricted_globals, restricted_locals
+
+                elif PY3:
+                    exec(code, restricted_globals, restricted_locals)
+
                 transform = restricted_locals['transform']
 
             except Exception as err:

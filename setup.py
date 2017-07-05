@@ -14,7 +14,7 @@ setup(
         install_requires=[
             'mongo_connector >= 2.4',
             'psycopg2 >= 2.6.1',
-            'RestrictedPython >= 3.6.0',
+            'RestrictedPython >= 4.0a3',
             'future >= 0.16.0'
         ],
         tests_require=['mock>=2.0.0'],

@@ -4,6 +4,7 @@ import logging
 import unicodedata
 
 import re
+import traceback
 from builtins import chr
 from future.utils import iteritems
 from past.builtins import long, basestring
@@ -128,7 +129,7 @@ def get_document_keys(document):
     return keys
 
 
-def sql_insert(cursor, tableName, document, primary_key):
+def sql_insert(cursor, tableName, document, primary_key, quiet=False):
     creationDate = extract_creation_date(document, primary_key)
     if creationDate is not None:
         document['_creationDate'] = creationDate
@@ -153,8 +154,12 @@ def sql_insert(cursor, tableName, document, primary_key):
 
     try:
         cursor.execute(sql, document)
-    except Exception as e:
-        LOG.error(u"Impossible to upsert the following document %s : %s", document, e)
+
+    except psycopg2.Error:
+        LOG.error(u"Impossible to upsert the following document %s", document)
+
+        if not quiet:
+            LOG.error(u"Traceback:\n%s", traceback.format_exc())
 
 
 def remove_control_chars(s):

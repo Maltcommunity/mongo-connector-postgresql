@@ -65,6 +65,7 @@ class DocManager(DocManagerBase):
         self.pgsql = psycopg2.connect(url)
         self.insert_accumulator = {}
         self.client = MongoClient(kwargs['mongoUrl'])
+        self.quiet = kwargs.get('quiet', False)
 
         register_adapter(ObjectId, object_id_adapter)
 
@@ -80,47 +81,54 @@ class DocManager(DocManagerBase):
     def _init_schema(self):
         self.prepare_mappings()
 
-        for database in self.mappings:
-            for collection in self.mappings[database]:
-                self.insert_accumulator[collection] = 0
+        try:
+            for database in self.mappings:
+                for collection in self.mappings[database]:
+                    self.insert_accumulator[collection] = 0
 
-                with self.pgsql.cursor() as cursor:
-                    pk_found = False
-                    pk_name = self.mappings[database][collection]['pk']
-                    columns = ['_creationdate TIMESTAMP']
-                    indices = [u"INDEX idx_{0}__creation_date ON {0} (_creationdate DESC)".format(collection)] + \
-                              self.mappings[database][collection].get('indices', [])
+                    with self.pgsql.cursor() as cursor:
+                        pk_found = False
+                        pk_name = self.mappings[database][collection]['pk']
+                        columns = ['_creationdate TIMESTAMP']
+                        indices = [u"INDEX idx_{0}__creation_date ON {0} (_creationdate DESC)".format(collection)] + \
+                                  self.mappings[database][collection].get('indices', [])
 
-                    for column in self.mappings[database][collection]:
-                        column_mapping = self.mappings[database][collection][column]
+                        for column in self.mappings[database][collection]:
+                            column_mapping = self.mappings[database][collection][column]
 
-                        if 'dest' in column_mapping:
-                            name = column_mapping['dest']
-                            column_type = column_mapping['type']
+                            if 'dest' in column_mapping:
+                                name = column_mapping['dest']
+                                column_type = column_mapping['type']
 
-                            constraints = ''
-                            if name == pk_name:
-                                constraints = "CONSTRAINT {0}_PK PRIMARY KEY".format(collection.upper())
-                                pk_found = True
+                                constraints = ''
+                                if name == pk_name:
+                                    constraints = "CONSTRAINT {0}_PK PRIMARY KEY".format(collection.upper())
+                                    pk_found = True
 
-                            if column_type != ARRAY_TYPE and column_type != ARRAY_OF_SCALARS_TYPE:
-                                columns.append(name + ' ' + column_type + ' ' + constraints)
+                                if column_type != ARRAY_TYPE and column_type != ARRAY_OF_SCALARS_TYPE:
+                                    columns.append(name + ' ' + column_type + ' ' + constraints)
 
-                            if 'index' in column_mapping:
-                                indices.append(u"INDEX idx_{2}_{0} ON {1} ({0})".format(name, collection, collection.replace('.', '_')))
+                                if 'index' in column_mapping:
+                                    indices.append(u"INDEX idx_{2}_{0} ON {1} ({0})".format(name, collection, collection.replace('.', '_')))
 
-                    if not pk_found:
-                        columns.append(pk_name + ' SERIAL CONSTRAINT ' + collection.upper() + '_PK PRIMARY KEY')
+                        if not pk_found:
+                            columns.append(pk_name + ' SERIAL CONSTRAINT ' + collection.upper() + '_PK PRIMARY KEY')
 
-                    if sql_table_exists(cursor, collection):
-                        sql_drop_table(cursor, collection)
+                        if sql_table_exists(cursor, collection):
+                            sql_drop_table(cursor, collection)
 
-                    sql_create_table(cursor, collection, columns)
+                        sql_create_table(cursor, collection, columns)
 
-                    for index in indices:
-                        cursor.execute("CREATE " + index)
+                        for index in indices:
+                            cursor.execute("CREATE " + index)
 
-                    self.commit()
+                        self.commit()
+
+        except psycopg2.Error:
+            LOG.error(u"A fatal error occured during tables creation")
+
+            if not self.quiet:
+                LOG.error(u"Traceback:\n%s", Traceback.format_exc())
 
     def stop(self):
         pass
@@ -133,8 +141,12 @@ class DocManager(DocManagerBase):
             with self.pgsql.cursor() as cursor:
                 self._upsert(namespace, doc, cursor, timestamp)
                 self.commit()
-        except Exception as e:
-            LOG.error("Impossible to upsert %s to %s\n%s", doc, namespace, traceback.format_exc())
+
+        except psycopg2.Error:
+            LOG.error(u"Impossible to upsert %s to %s", doc, namespace)
+
+            if not self.quiet:
+                LOG.error(u"Traceback:\n%s", traceback.format_exc())
 
     def _upsert(self, namespace, document, cursor, timestamp):
         db, collection = db_and_collection(namespace)
@@ -142,7 +154,13 @@ class DocManager(DocManagerBase):
         mapped_document = get_mapped_document(self.mappings, document, namespace)
 
         if mapped_document:
-            sql_insert(cursor, collection, mapped_document, self.mappings[db][collection]['pk'])
+            sql_insert(
+                cursor,
+                collection,
+                mapped_document,
+                self.mappings[db][collection]['pk'],
+                quiet=self.quiet
+            )
 
             self._upsert_array_fields(collection, cursor, db, document, mapped_document, namespace, timestamp)
             self.upsert_scalar_array_fields(collection, cursor, db, document, mapped_document, namespace, timestamp)
@@ -186,18 +204,29 @@ class DocManager(DocManagerBase):
         LOG.info('Inspecting %s...', namespace)
 
         if is_mapped(self.mappings, namespace):
-            LOG.info('Mapping found for %s !...', namespace)
-            LOG.info('Deleting all rows before update %s !...', namespace)
+            try:
+                LOG.info('Mapping found for %s !...', namespace)
+                LOG.info('Deleting all rows before update %s !...', namespace)
 
-            db, collection = db_and_collection(namespace)
-            for linked_table in self.get_linked_tables(db, collection):
-                sql_delete_rows(self.pgsql.cursor(), linked_table)
+                db, collection = db_and_collection(namespace)
+                for linked_table in self.get_linked_tables(db, collection):
+                    sql_delete_rows(self.pgsql.cursor(), linked_table)
 
-            sql_delete_rows(self.pgsql.cursor(), collection)
-            self.commit()
+                sql_delete_rows(self.pgsql.cursor(), collection)
+                self.commit()
 
-            self._bulk_upsert(documents, namespace)
-            LOG.info('%s done.', namespace)
+                self._bulk_upsert(documents, namespace)
+                LOG.info('%s done.', namespace)
+
+            except psycopg2.Error:
+                LOG.error(
+                    "Impossible to bulk insert documents in namespace %s: %s",
+                    namespace,
+                    documents
+                )
+
+                if not self.quiet:
+                    LOG.error("Traceback:\n%s", traceback.format_exc())
 
     def _bulk_upsert(self, documents, namespace):
         with self.pgsql.cursor() as cursor:

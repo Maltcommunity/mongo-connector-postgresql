@@ -510,11 +510,33 @@ class TestPostgreSQLMappings(TestCase):
 
         mappings.validate_mapping(mapping)
 
-    def test_get_transform_value(self):
+    def test_get_transform_value_with_eval(self):
+        mapped_field = {
+            'type': 'INT',
+            'dest': 'added',
+            'transform': 'val + 2'
+        }
+        doc = {
+            'added': 40
+        }
+
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 42)
+
+        doc['added'] = 'aa'
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 'aa')
+
+        mapped_field['transform'] = 'val + missing_var'
+        doc['added'] = 40
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 40)
+
+    def test_get_transform_value_with_function(self):
         mapped_field = {
             'type': 'INT',
             'dest': 'str_to_int',
-            'transform': 'tests.test_mappings.parseInt'
+            'transform': '@tests.test_mappings.parseInt'
         }
         doc = {
             'str_to_int': '42'
@@ -523,11 +545,11 @@ class TestPostgreSQLMappings(TestCase):
         got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
         self.assertEqual(got, 42)
 
-        mapped_field['transform'] = 'missing.no'
+        mapped_field['transform'] = '@missing.no'
         got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
         self.assertEqual(got, '42')
 
-        mapped_field['transform'] = 'tests.test_mappings.parseInt'
+        mapped_field['transform'] = '@tests.test_mappings.parseInt'
         doc = {
             'str_to_int': '42a'
         }
@@ -541,7 +563,7 @@ class TestPostgreSQLMappings(TestCase):
                     'str_to_int': {
                         'type': 'INT',
                         'dest': 'str_to_int',
-                        'transform': 'tests.test_mappings.parseInt'
+                        'transform': '@tests.test_mappings.parseInt'
                     }
                 }
             }
@@ -559,7 +581,7 @@ class TestPostgreSQLMappings(TestCase):
         got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
         self.assertEqual(got, {'str_to_int': '42a'})
 
-        mapping['db']['col']['str_to_int']['transform'] = 'missing.no'
+        mapping['db']['col']['str_to_int']['transform'] = '@missing.no'
         doc = {
             'str_to_int': '42'
         }

@@ -5,6 +5,10 @@ from unittest import TestCase, main
 from mongo_connector.doc_managers import mappings
 
 
+def parseInt(val):
+    return int(val)
+
+
 class TestPostgreSQLMappings(TestCase):
     def test_clean_and_flatten_doc(self):
         mapping = {
@@ -505,6 +509,84 @@ class TestPostgreSQLMappings(TestCase):
         }
 
         mappings.validate_mapping(mapping)
+
+    def test_get_transform_value_with_eval(self):
+        mapped_field = {
+            'type': 'INT',
+            'dest': 'added',
+            'transform': 'val + 2'
+        }
+        doc = {
+            'added': 40
+        }
+
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 42)
+
+        doc['added'] = 'aa'
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 'aa')
+
+        mapped_field['transform'] = 'val + missing_var'
+        doc['added'] = 40
+        got = mappings.get_transformed_value(mapped_field, doc, 'added')
+        self.assertEqual(got, 40)
+
+    def test_get_transform_value_with_function(self):
+        mapped_field = {
+            'type': 'INT',
+            'dest': 'str_to_int',
+            'transform': '@tests.test_mappings.parseInt'
+        }
+        doc = {
+            'str_to_int': '42'
+        }
+
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, 42)
+
+        mapped_field['transform'] = '@missing.no'
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, '42')
+
+        mapped_field['transform'] = '@tests.test_mappings.parseInt'
+        doc = {
+            'str_to_int': '42a'
+        }
+        got = mappings.get_transformed_value(mapped_field, doc, 'str_to_int')
+        self.assertEqual(got, '42a')
+
+    def test_get_transform_document(self):
+        mapping = {
+            'db': {
+                'col': {
+                    'str_to_int': {
+                        'type': 'INT',
+                        'dest': 'str_to_int',
+                        'transform': '@tests.test_mappings.parseInt'
+                    }
+                }
+            }
+        }
+        doc = {
+            'str_to_int': '42'
+        }
+
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': 42})
+
+        doc = {
+            'str_to_int': '42a'
+        }
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': '42a'})
+
+        mapping['db']['col']['str_to_int']['transform'] = '@missing.no'
+        doc = {
+            'str_to_int': '42'
+        }
+        got = mappings.get_transformed_document(mapping, 'db', 'col', doc)
+        self.assertEqual(got, {'str_to_int': '42'})
 
 
 if __name__ == '__main__':

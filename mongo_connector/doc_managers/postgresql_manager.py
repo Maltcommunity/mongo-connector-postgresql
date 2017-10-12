@@ -146,7 +146,13 @@ class DocManager(DocManagerBase):
         mapped_document = get_mapped_document(self.mappings, document, namespace)
 
         if mapped_document:
-            sql_insert(cursor, collection, mapped_document, self.mappings[db][collection]['pk'])
+            sql_insert(
+                cursor,
+                collection,
+                mapped_document,
+                self.mappings,
+                db, collection
+            )
 
             self._upsert_array_fields(collection, cursor, db, document, mapped_document, namespace, timestamp)
             self.upsert_scalar_array_fields(collection, cursor, db, document, mapped_document, namespace, timestamp)

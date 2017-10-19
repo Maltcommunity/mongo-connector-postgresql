@@ -226,6 +226,8 @@ class DocManager(DocManagerBase):
             self.commit()
 
     def update(self, document_id, update_spec, namespace, timestamp):
+        if not is_mapped(self.mappings, namespace):
+            return
         db, collection = db_and_collection(namespace)
         updated_document = self.get_document_by_id(db, collection, document_id)
         primary_key = self.mappings[db][collection]['pk']

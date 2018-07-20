@@ -2,7 +2,7 @@
 from future.utils import iteritems
 from mongo_connector.doc_managers.formatters import DocumentFlattener
 
-from mongo_connector.doc_managers.utils import db_and_collection, ARRAY_OF_SCALARS_TYPE
+from mongo_connector.doc_managers.utils import db_and_collection, ARRAY_OF_SCALARS_TYPE, FIELD_PRESENCE_TYPE
 
 _formatter = DocumentFlattener()
 
@@ -58,8 +58,12 @@ def get_mapped_document(mappings, document, namespace):
         field_mapping = mappings[db][collection][key]
 
         if 'dest' in field_mapping:
+            value = cleaned_and_flatten_document.pop(key)
+            if field_mapping['type'] == FIELD_PRESENCE_TYPE:
+                value = value is not None
+
             mappedKey = field_mapping['dest']
-            cleaned_and_flatten_document[mappedKey] = cleaned_and_flatten_document.pop(key)
+            cleaned_and_flatten_document[mappedKey] = value
 
     return cleaned_and_flatten_document
 

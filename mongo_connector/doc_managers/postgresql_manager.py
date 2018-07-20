@@ -16,10 +16,9 @@ from pymongo import MongoClient
 from mongo_connector.doc_managers.mappings import is_mapped, get_mapped_document, get_primary_key, \
     get_scalar_array_fields
 from mongo_connector.doc_managers.sql import sql_table_exists, sql_create_table, sql_insert, sql_delete_rows, \
-    sql_bulk_insert, object_id_adapter, sql_delete_rows_where, to_sql_value, sql_drop_table, insert_document_arrays, \
-    insert_scalar_arrays
+    sql_bulk_insert, object_id_adapter, sql_delete_rows_where, to_sql_value, sql_drop_table
 from mongo_connector.doc_managers.utils import get_array_fields, db_and_collection, get_any_array_fields, \
-    ARRAY_OF_SCALARS_TYPE, ARRAY_TYPE, get_nested_field_from_document
+    ARRAY_OF_SCALARS_TYPE, ARRAY_TYPE, get_nested_field_from_document, pg_type_for_mapping_type
 
 MAPPINGS_JSON_FILE_NAME = 'mappings.json'
 
@@ -60,17 +59,19 @@ class DocManager(DocManagerBase):
 
         for database in self.mappings:
             for collection in self.mappings[database]:
+                collection_mapping = self.mappings[database][collection]
+
                 self.insert_accumulator[collection] = 0
 
                 with self.pgsql.cursor() as cursor:
                     pk_found = False
-                    pk_name = self.mappings[database][collection]['pk']
+                    pk_name = collection_mapping['pk']
                     columns = ['_creationdate TIMESTAMP']
                     indices = [u"INDEX idx_{0}__creation_date ON {0} (_creationdate DESC)".format(collection)] + \
-                              self.mappings[database][collection].get('indices', [])
+                              collection_mapping.get('indices', [])
 
-                    for column in self.mappings[database][collection]:
-                        column_mapping = self.mappings[database][collection][column]
+                    for column in collection_mapping:
+                        column_mapping = collection_mapping[column]
 
                         if 'dest' in column_mapping:
                             name = column_mapping['dest']
@@ -82,7 +83,7 @@ class DocManager(DocManagerBase):
                                 pk_found = True
 
                             if column_type != ARRAY_TYPE and column_type != ARRAY_OF_SCALARS_TYPE:
-                                columns.append(name + ' ' + column_type + ' ' + constraints)
+                                columns.append(name + ' ' + pg_type_for_mapping_type(column_type) + ' ' + constraints)
 
                             if 'index' in column_mapping:
                                 indices.append(u"INDEX idx_{2}_{0} ON {1} ({0})".format(name, collection, collection.replace('.', '_')))

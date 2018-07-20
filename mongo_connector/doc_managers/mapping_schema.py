@@ -22,6 +22,7 @@ MAPPING_SCHEMA = {
                     "oneOf": [
                         {"$ref": "#/definitions/basic-field"},
                         {"$ref": "#/definitions/array-field"},
+                        {"$ref": "#/definitions/presence-field"},
                         {"$ref": "#/definitions/scalar-array-field"}
                     ]
                 }
@@ -140,6 +141,16 @@ MAPPING_SCHEMA = {
                 }
             },
             "required": ["type", "dest", "fk"]
+        },
+        "presence-field": {
+            "properties": {
+                "type": {"enum": ["_PRESENCE"]},
+                "dest": {"type": "boolean"},
+                "nullable": {
+                    "type": "boolean"
+                }
+            },
+            "required": ["type"]
         },
         "scalar-array-field": {
             "properties": {

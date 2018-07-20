@@ -22,6 +22,10 @@ MAPPING_RAW = '''{
                 "type": "_ARRAY",
                 "dest": "col_field2",
                 "fk": "id_col"
+            },
+            "field3": {
+                "dest": "field3_is_present",
+                "type": "_PRESENCE"
             }
         },
         "col_field2": {
@@ -73,6 +77,10 @@ MAPPING = {
                 'dest': 'col_field2',
                 'type': '_ARRAY',
                 'fk': 'id_col'
+            },
+            'field3': {
+                'dest': 'field3_is_present',
+                'type': '_PRESENCE'
             }
         },
         'col_field2': {
@@ -185,7 +193,7 @@ class TestManagerInitialization(TestPostgreSQLManager):
         cursor.execute.assert_has_calls([
             call('DROP TABLE col'),
             call(
-                'CREATE TABLE col  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_PK PRIMARY KEY,field1 TEXT ) '
+                'CREATE TABLE col  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_PK PRIMARY KEY,field1 TEXT ,field3_is_present BOOLEAN NOT NULL DEFAULT FALSE ) '
             ),
             call(
                 'CREATE TABLE col_field2  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_FIELD2_PK PRIMARY KEY,id_col INT ,subfield1 TEXT ) '
@@ -244,20 +252,22 @@ class TestManager(TestPostgreSQLManager):
                 {
                     'subfield1': 'subval1'
                 }
-            ]
+            ],
+            'field3': 'some value'
         }
         now = time()
 
         self.docmgr.upsert(doc, 'db.col', now)
 
+        # print(self.cursor.execute.mock_calls)
         self.cursor.execute.assert_has_calls([
             call(
                 'INSERT INTO col_field2  (id_col,subfield1)  VALUES  (%(id_col)s,%(subfield1)s) ',
                 {'id_col': 1, 'subfield1': 'subval1'}
             ),
             call(
-                'INSERT INTO col  (_id,field1)  VALUES  (%(_id)s,%(field1)s)  ON CONFLICT (_id) DO UPDATE SET  (_id,field1)  =  (%(_id)s,%(field1)s) ',
-                {'_id': 1, 'field1': 'val1'}
+                'INSERT INTO col  (_id,field1,field3_is_present)  VALUES  (%(_id)s,%(field1)s,%(field3_is_present)s)  ON CONFLICT (_id) DO UPDATE SET  (_id,field1,field3_is_present)  =  (%(_id)s,%(field1)s,%(field3_is_present)s) ',
+                {'_id': 1, 'field1': 'val1', 'field3_is_present': True}
             )
         ], any_order=True)
         self.pconn.commit.assert_called()
@@ -268,25 +278,36 @@ class TestManager(TestPostgreSQLManager):
             'field1': 'val1',
             'field2': [
                 {'subfield1': 'subval1'}
-            ]
+            ],
+            'field3': 'some value'
         }
         doc2 = {
             '_id': 2,
             'field1': 'val2',
             'field2': [
                 {'subfield1': 'subval2'}
-            ]
+            ],
+            'field3': None  # -> FALSE
         }
         doc3 = {
             '_id': 3,
             'field1': 'val3',
             'field2': [
                 {'subfield1': 'subval3'}
+            ],
+            'field3': False  # False is a value as well, and should be considered present
+        }
+        doc4 = {
+            '_id': 4,
+            'field1': 'val4',
+            'field2': [
+                {'subfield1': 'subval4'}
             ]
+            # no field3, should be considered absent -> NULL -> defaulted to FALSE
         }
         now = time()
 
-        self.docmgr.bulk_upsert([doc1, doc2, doc3], 'db.col', now)
+        self.docmgr.bulk_upsert([doc1, doc2, doc3, doc4], 'db.col', now)
 
         print(self.cursor.execute.mock_calls)
         self.cursor.execute.assert_has_calls([
@@ -297,13 +318,16 @@ class TestManager(TestPostgreSQLManager):
                 "INSERT INTO col_field2 (_creationDate,_id,id_col,subfield1) VALUES (NULL,NULL,2,'subval2')"
             ),
             call(
-                "INSERT INTO col (_creationDate,_id,field1) VALUES (NULL,1,'val1'),(NULL,2,'val2')"
+                "INSERT INTO col (_creationDate,_id,field1,field3_is_present) VALUES (NULL,1,'val1',True),(NULL,2,'val2',False)"
             ),
             call(
                 "INSERT INTO col_field2 (_creationDate,_id,id_col,subfield1) VALUES (NULL,NULL,3,'subval3')"
             ),
             call(
-                "INSERT INTO col (_creationDate,_id,field1) VALUES (NULL,3,'val3')"
+                "INSERT INTO col_field2 (_creationDate,_id,id_col,subfield1) VALUES (NULL,NULL,4,'subval4')"
+            ),
+            call(
+                "INSERT INTO col (_creationDate,_id,field1,field3_is_present) VALUES (NULL,3,'val3',True),(NULL,4,'val4',NULL)"
             )
         ], any_order=True)
         self.pconn.commit.assert_called()
@@ -315,7 +339,8 @@ class TestManager(TestPostgreSQLManager):
             'field1': 'val1',
             'field2': [
                 {'subfield1': 'subval1'}
-            ]
+            ],
+            'field3': 'some value'
         }
         now = time()
 
@@ -327,6 +352,7 @@ class TestManager(TestPostgreSQLManager):
         self.mdb.__getitem__.assert_called_with('col')
         self.mcol.find_one.assert_called_with({'_id': 1})
 
+        # print(self.cursor.execute.mock_calls)
         self.cursor.execute.assert_has_calls([
             call(
                 'DELETE FROM col_field2 WHERE id_col = 1'
@@ -336,8 +362,8 @@ class TestManager(TestPostgreSQLManager):
                 {'id_col': 1, 'subfield1': 'subval1'}
             ),
             call(
-                'INSERT INTO col  (_id,field1)  VALUES  (%(_id)s,%(field1)s)  ON CONFLICT (_id) DO UPDATE SET  (_id,field1)  =  (%(_id)s,%(field1)s) ',
-                {'_id': 1, 'field1': 'val1'}
+                'INSERT INTO col  (_id,field1,field3_is_present)  VALUES  (%(_id)s,%(field1)s,%(field3_is_present)s)  ON CONFLICT (_id) DO UPDATE SET  (_id,field1,field3_is_present)  =  (%(_id)s,%(field1)s,%(field3_is_present)s) ',
+                {'_id': 1, 'field1': 'val1', 'field3_is_present': True}
             )
         ], any_order=True)
         self.pconn.commit.assert_called()

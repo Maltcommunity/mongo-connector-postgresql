@@ -5,6 +5,7 @@ from future.utils import iteritems
 
 ARRAY_TYPE = u'_ARRAY'
 ARRAY_OF_SCALARS_TYPE = u'_ARRAY_OF_SCALARS'
+FIELD_PRESENCE_TYPE = u'_PRESENCE'
 
 
 def extract_creation_date(document, primary_key):
@@ -87,3 +88,7 @@ def get_nested_field_from_document(document, dot_notation_key):
         return None
 
     return get_nested_field_from_document(document[partial_key], '.'.join(dot_notation_key.split('.')[1:]))
+
+
+def pg_type_for_mapping_type(mapping_type):
+    return 'BOOLEAN NOT NULL DEFAULT FALSE' if mapping_type == FIELD_PRESENCE_TYPE else mapping_type

@@ -87,6 +87,10 @@ This file should be named mappings.json. Here is a sample :
                 "myobject.subproperty":{
                     "dest":"subproperty",
                     "type":"TEXT"
+                },
+                "propertyWhichMayBeNull": {
+                    "dest":"property_has_been_provided",
+                    "type":"_PRESENCE"
                 }
             }
         }

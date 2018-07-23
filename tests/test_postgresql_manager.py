@@ -193,7 +193,7 @@ class TestManagerInitialization(TestPostgreSQLManager):
         cursor.execute.assert_has_calls([
             call('DROP TABLE col'),
             call(
-                'CREATE TABLE col  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_PK PRIMARY KEY,field1 TEXT ,field3_is_present BOOLEAN NOT NULL DEFAULT FALSE ) '
+                'CREATE TABLE col  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_PK PRIMARY KEY,field1 TEXT ,field3_is_present BOOLEAN DEFAULT FALSE ) '
             ),
             call(
                 'CREATE TABLE col_field2  (_creationdate TIMESTAMP,_id INT CONSTRAINT COL_FIELD2_PK PRIMARY KEY,id_col INT ,subfield1 TEXT ) '

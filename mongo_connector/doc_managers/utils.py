@@ -91,4 +91,4 @@ def get_nested_field_from_document(document, dot_notation_key):
 
 
 def pg_type_for_mapping_type(mapping_type):
-    return 'BOOLEAN NOT NULL DEFAULT FALSE' if mapping_type == FIELD_PRESENCE_TYPE else mapping_type
+    return 'BOOLEAN DEFAULT FALSE' if mapping_type == FIELD_PRESENCE_TYPE else mapping_type

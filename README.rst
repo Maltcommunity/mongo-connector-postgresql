@@ -254,3 +254,25 @@ Even if this code is battle tested (we use it in production and fix for bugs eve
 perfect. Indeed, it was written quickly, by Python aware (but still Java specialized) developers in a "proof of concept"
 perspective. Therefore, one can easily improve the code quality, the test coverage (which is currently 0%),
 the architecture or write more 'Pythonic' code.
+
+How to publish to Pypi ?
+------------------------
+
+1. Create you ~/.pypirc with the following model :
+
+	[distutils]
+	index-servers=
+	testpypi
+	pypi
+	
+	[testpypi]
+	repository=https://test.pypi.org/legacy/
+	username=hopwork 
+	password=REPLACE_ME
+	
+	[pypi]
+	repository=https://upload.pypi.org/legacy/
+	username=hopwork
+	password=REPLACE_ME
+
+2. Execute the publish.sh script

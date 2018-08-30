@@ -1,4 +1,14 @@
-.. image:: https://travis-ci.org/Hopwork/mongo-connector-postgresql.svg?branch=master  
+PROJECT STOPPED AND REPLACED
+-----------------------------
+
+This project helped us a lot but we encounter several limitations and performance issues we were not confident to fix with the current architecture.
+Indeed, this project is a plugin above another project and this other project is not supported anymore since more than 1 year.
+That's why we decided to rewrite the whole process to improve performance, bring some monitoring checks, improve stability.
+You can find this new tool here : `mongo-postgresql-streamer <https://github.com/Maltcommunity/mongo-postgresql-streamer>`__
+
+As now, this project won't be supported anymore but you could switch to mongo-postgresql-streamer.
+
+.. image:: https://travis-ci.org/Hopwork/mongo-connector-postgresql.svg?branch=master
 .. image:: https://coveralls.io/repos/github/Hopwork/mongo-connector-postgresql/badge.svg?branch=master
 
 `Continuous Integration <https://travis-ci.org/Hopwork/mongo-connector-postgresql>`_ - `Code Coverage <https://coveralls.io/github/Hopwork/mongo-connector-postgresql>`_
@@ -34,7 +44,7 @@ All the works of tailing the oplog, performing the initial sync is made by the `
 Getting Started
 ---------------
 
-For some context (in french) : `See our blog article <https://inside.hopwork.com/business-intelligence-mongodb/>`_
+For some context (in french) : `See our blog article <https://medium.com/nerds-malt/business-intelligence-sur-mongodb-de-mongo-%C3%A0-postgresql-%C3%A0-chartio-ddc9e2f561ef/>`_
 
 Installation
 ~~~~~~~~~~~~

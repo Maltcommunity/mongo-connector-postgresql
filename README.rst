@@ -6,7 +6,9 @@ Indeed, this project is a plugin above another project and this other project is
 That's why we decided to rewrite the whole process to improve performance, bring some monitoring checks, improve stability.
 You can find this new tool here : `mongo-postgresql-streamer <https://github.com/Maltcommunity/mongo-postgresql-streamer>`__
 
-As now, this project won't be supported anymore but you could switch to mongo-postgresql-streamer.
+**As now, this project won't be supported anymore but you could switch to mongo-postgresql-streamer.**
+
+----------
 
 .. image:: https://travis-ci.org/Hopwork/mongo-connector-postgresql.svg?branch=master
 .. image:: https://coveralls.io/repos/github/Hopwork/mongo-connector-postgresql/badge.svg?branch=master
